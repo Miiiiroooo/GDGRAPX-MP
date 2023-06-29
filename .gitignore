@@ -398,6 +398,6 @@ FodyWeavers.xsd
 *.sln.iml
 
 # Project specific
-!3D/
-![Ss]haders/
-![Dd]ependencies/
+!3D/*
+![Ss]haders/*
+![Dd]ependencies/*
