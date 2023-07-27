@@ -16,7 +16,7 @@ glm::mat4 Model3D::GetTransformationMatrix()
 	glm::mat4 rotation = glm::toMat4(transform.GetRotation());
 	glm::mat4 scale = glm::scale(identity_matrix4, transform.scale);
 
-	glm::mat4 transformation_matrix = scale * translation * rotation;
+	glm::mat4 transformation_matrix = translation * rotation * scale;
 
 	return transformation_matrix;
 }

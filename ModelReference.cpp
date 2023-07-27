@@ -48,7 +48,7 @@ bool ModelReference::LoadObject()
     }
 }
 
-std::vector<GLfloat>& ModelReference::GetFullVertexData()
+List<GLfloat>& ModelReference::GetFullVertexData()
 {
     return fullVertexData;
 }

@@ -1,20 +1,26 @@
 #include "pch.h"
+#include "Shader.h"
 #include "ModelReference.h"
 #include "Texture.h"
 #include "DirectionalLight.h"
 #include "PointLight.h"
 #include "OrthoCamera.h"
 #include "PerspectiveCamera.h"
+#include "Skybox.h"
+#include "Player.h"
 
 
 #pragma region Global Variables
-// Models, Textures, Lights, and Cameras
-List<ModelReference*> modelReferencesList;
+// Shaders, Models, Textures, Lights, Cameras, the Skybox, and the Player
+List<Shader*> shadersList;
+List<ModelReference*> modelReferencesList; 
 List<Model3D*> modelsList;
 List<Texture*> texturesList;
 List<Light*> lightsList;
 List<Camera*> camerasList;
 Camera* mainCamera;
+Skybox* skybox;
+Player* player; 
 
 // Controls
 Dictionary<int, bool> heldKeyInputs;
@@ -45,17 +51,13 @@ const float height = 600;
 
 #pragma region Method Declarations
 void ModelRotationInputs();
-void LightRotationInputs();
-void IntensityInputs();
 void PerspectiveCamRotationInputs();
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod);
 void CursorPositionCallback(GLFWwindow* window, double xPos, double yPos);
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mod);
 
 bool InitializeOpenGL(GLFWwindow** window);
-String GetShaderData(String path);
-GLuint InitializeShaderProgram(const char* vertexData, const char* fragmentData, GLuint& vertShader, GLuint& fragShader);
-
+void LoadShaders(const List<Pair<String, String>>& shaderPathsList); 
 void LoadObjects(const List<String>& objPathsList);
 void LoadTextures(const List<Pair<String, GLuint>>& textureInfoList);
 void CreateModels(const List<Pair<int, int>>& objTextureMap, const List<glm::vec3>& modelsInfoList);
@@ -63,6 +65,7 @@ void CreateLights(const List<Pair<glm::vec3, unsigned int>>& lightsInfoList);
 void CreateCameras(const List<glm::vec3>& camerasInfoList);
 
 glm::mat4 CreateViewMatrix();
+void UpdateCameras();
 void ComputeVerticesWithShaders(GLuint& shaderProgram, glm::mat4& transformationMatrix, glm::mat4& viewMatrix);
 void ComputeFragmentsWithShaders(GLuint& shaderProgram, Texture* texture, glm::vec3& color);
 void PassLightingData(GLuint& shaderProgram);
@@ -71,6 +74,9 @@ void PassLightingData(GLuint& shaderProgram);
 
 int main(void)
 {
+    // Create Player
+    player = new Player(); 
+
     // Initialize program
     srand(time(0));
     GLFWwindow* window;
@@ -78,43 +84,105 @@ int main(void)
         return -1;
 
     // Load shaders 
-    String vertS = GetShaderData("Shaders/sample.vert");
-    const char* v = vertS.c_str();
-    String fragS = GetShaderData("Shaders/sample.frag");
-    const char* f = fragS.c_str();
+    List<Pair<String, String>> shaderPathsList = {
+        {"Shaders/shader.vert", "Shaders/shader.frag"},
+        {"Shaders/skybox.vert", "Shaders/skybox.frag"}
+    };
+    LoadShaders(shaderPathsList);
+    
 
-    GLuint vertShader, fragShader;
-    GLuint shaderProgram = InitializeShaderProgram(v, f, vertShader, fragShader);
+    // Intialize Skybox
+    List<String> facesSkyboxArray{
+        "Skybox/CosmicCoolCloudRight.png",
+        "Skybox/CosmicCoolCloudLeft.png",
+        "Skybox/CosmicCoolCloudTop.png",
+        "Skybox/CosmicCoolCloudBottom.png",
+        "Skybox/CosmicCoolCloudFront.png",
+        "Skybox/CosmicCoolCloudBack.png",
+    };
+
+    skybox = new Skybox(&shadersList[1]->GetShaderProgram());
+    skybox->IntializeSkybox(facesSkyboxArray);
 
 
     // Load 3d object references
     List<String> objPathsList = {
-        "3D/amumu.obj",   // source commented below
-        "3D/sphere.obj",
+        "3D/plane.obj",
+        "3D/tank-red.obj",
+        "3D/carrier-tank.obj",
+        "3D/penguin.obj",
+        "3D/panda.obj",
+        "3D/snowman.obj",
+        "3D/veigar.obj",
+        "3D/amumu.obj",
     };
     LoadObjects(objPathsList);
 
 
     // Load textures
     List<Pair<String, GLuint>> textureInfoList = {
+        {"3D/ground.png", GL_RGBA},
+        {"3D/tank-red.png", GL_RGBA},
+        {"3D/carrier-tank.png", GL_RGBA},
+        {"3D/penguin.png", GL_RGBA},
+        {"3D/panda.png", GL_RGBA},
+        {"3D/snowman.png", GL_RGBA},
+        {"3D/veigar.png", GL_RGBA},
         {"3D/amumu.png", GL_RGBA},
     };
     LoadTextures(textureInfoList);
 
-
     // Create new models
     List<Pair<int, int>> objTextureMap = {
-        {0, 0},   // index to obj reference (amumu.obj), index to texture (amumu.png)
-        {1, -1},
+        {0, 0},       // index to obj reference (amumu.obj), index to texture (amumu.png)
+        {1, 1},
+        {2, 2},
+        {3, 3},
+        {4, 4},
+        {5, 5},
+        {6, 6},
+        {7, 7},
     };
     List<glm::vec3> modelsInfoList = {
-        glm::vec3(0.f, 0.f, 0.f),         // position
+        // plane
+        glm::vec3(0.f, 0.3f, 0.f),        // position
         glm::vec3(0.f, 180.f, 0.f),       // rotation
-        glm::vec3(0.01f, 0.01f, 0.01f),   // scale
+        glm::vec3(70.f, 1.f, 70.f),     // scale
         glm::vec3(1.f, 1.f, 1.f),         // color
-        glm::vec3(2.1213f, 2.f, 2.1213f),
+        // player tank
+        glm::vec3(0.f, 0.f, 0.f),
         glm::vec3(0.f, 0.f, 0.f),
         glm::vec3(1.f, 1.f, 1.f),
+        glm::vec3(1.f, 1.f, 1.f),
+        // carrier tank
+        glm::vec3(25.f, 0.f, 25.f),
+        glm::vec3(0.f, 0.f, 0.f), 
+        glm::vec3(0.001f, 0.001f, 0.001f),
+        glm::vec3(1.f, 1.f, 1.f),
+        // penguin
+        glm::vec3(-25.f, 0.f, -25.f),
+        glm::vec3(0.f, 0.f, 0.f),
+        glm::vec3(0.05f, 0.05f, 0.05f),
+        glm::vec3(1.f, 1.f, 1.f),
+        // panda
+        glm::vec3(25.f, 0.f, -25.f),
+        glm::vec3(0.f, 0.f, 0.f),
+        glm::vec3(1.0f, 1.0f, 1.0f),
+        glm::vec3(1.f, 1.f, 1.f),
+        // snowman
+        glm::vec3(-25.f, 0.f, 25.f),
+        glm::vec3(0.f, 0.f, 0.f),
+        glm::vec3(0.1f, 0.1f, 0.1f),
+        glm::vec3(1.f, 1.f, 1.f),
+        // veigar
+        glm::vec3(75.f, 0.f, 75.f),
+        glm::vec3(0.f, 0.f, 0.f),
+        glm::vec3(0.01f, 0.01f, 0.01f),
+        glm::vec3(1.f, 1.f, 1.f),
+        // amumu
+        glm::vec3(75.f, 0.f, 75.f),
+        glm::vec3(0.f, 0.f, 0.f),
+        glm::vec3(0.01f, 0.01f, 0.01f),
         glm::vec3(1.f, 1.f, 1.f),
     };
     CreateModels(objTextureMap, modelsInfoList);
@@ -130,12 +198,18 @@ int main(void)
 
     // Create Cameras
     List<glm::vec3> camerasInfoList = {
-        glm::vec3(0.f, 0.5f, -2.f),       // position
-        glm::vec3(0.f, 0.f, 0.f),         // rotation
-        glm::vec3(0.f, 0.f, 0.f),         // camera target
+        // third-person
+        glm::vec3(0.f, 5.0f, -5.f),           // position
+        glm::vec3(45.f, 0.f, 0.f),            // rotation
+        modelsList[1]->transform.position,    // camera target 
+        // first-person
+        modelsList[1]->transform.position,
+        modelsList[1]->transform.GetEulerRotation(),
+        modelsList[1]->transform.localForward,
+        // ortho
         glm::vec3(0.f, 6.f, 0.f),
         glm::vec3(89.f, 0.f, 0.f),
-        glm::vec3(0.f, 0.f, 0.f),
+        modelsList[1]->transform.position,
     };
     CreateCameras(camerasInfoList);
 
@@ -151,9 +225,10 @@ int main(void)
 
         // Check inputs
         ModelRotationInputs();
-        LightRotationInputs();
-        IntensityInputs();
         PerspectiveCamRotationInputs();
+
+        player->CheckInputs(deltaTime);
+        UpdateCameras();
 
         // Iterate through modelsList
         for (Model3D* model : modelsList)
@@ -161,10 +236,12 @@ int main(void)
             glm::mat4 transformationMatrix = model->GetTransformationMatrix();
             glm::mat4 viewMatrix = CreateViewMatrix();
 
-            ComputeVerticesWithShaders(shaderProgram, transformationMatrix, viewMatrix);
-            ComputeFragmentsWithShaders(shaderProgram, model->texture, model->color);
+            ComputeVerticesWithShaders(shadersList[0]->GetShaderProgram(), transformationMatrix, viewMatrix);
+            ComputeFragmentsWithShaders(shadersList[0]->GetShaderProgram(), model->texture, model->color);
 
-            glUseProgram(shaderProgram);
+            skybox->Render(viewMatrix, mainCamera->GetProjectionMatrix());
+
+            glUseProgram(shadersList[0]->GetShaderProgram());
             glBindVertexArray(model->objRef->GetVAO());
             glDrawArrays(GL_TRIANGLES, 0, model->objRef->GetFullVertexData().size() / 8);
         }
@@ -220,86 +297,6 @@ void ModelRotationInputs()
     if (heldKeyInputs[GLFW_KEY_E])
     {
         model->transform.Rotate(glm::vec3(0.f, 0.f, -delta));
-    }
-}
-
-void LightRotationInputs()
-{
-    if (!isControllingLight)
-        return;
-
-    // Get Point Light
-    PointLight* light = ConvertTo<Light, PointLight>(lightsList[1]);
-    glm::vec3 delta(0.f);
-
-    // Get model target and set as the anchor point for rotation
-    Model3D* target = modelsList[0];
-    glm::vec3 anchorPoint = target->transform.position;
-
-    if (heldKeyInputs[GLFW_KEY_W])
-    {
-        delta.x -= deltaTime * lightRotationSpeed;
-    }
-
-    if (heldKeyInputs[GLFW_KEY_S])
-    {
-        delta.x += deltaTime * lightRotationSpeed;
-    }
-
-    if (heldKeyInputs[GLFW_KEY_A])
-    {
-        delta.y -= deltaTime * lightRotationSpeed;
-    }
-
-    if (heldKeyInputs[GLFW_KEY_D])
-    {
-        delta.y += deltaTime * lightRotationSpeed;
-    }
-
-    if (heldKeyInputs[GLFW_KEY_Q])
-    {
-        delta.z += deltaTime * lightRotationSpeed;
-    }
-
-    if (heldKeyInputs[GLFW_KEY_E])
-    {
-        delta.z -= deltaTime * lightRotationSpeed;
-    }
-
-    light->transform.RotateAroundPoint(delta, anchorPoint);
-    light->model->transform.RotateAroundPoint(delta, anchorPoint);
-}
-
-void IntensityInputs()
-{
-    if (heldKeyInputs[GLFW_KEY_LEFT])
-    {
-        lightsList[0]->lightIntensity -= dirIntensitySpeed * deltaTime;
-
-        if (lightsList[0]->lightIntensity < 0)
-        {
-            lightsList[0]->lightIntensity = 0;
-        }
-    }
-
-    if (heldKeyInputs[GLFW_KEY_RIGHT])
-    {
-        lightsList[0]->lightIntensity += dirIntensitySpeed * deltaTime;
-    }
-
-    if (heldKeyInputs[GLFW_KEY_UP])
-    {
-        lightsList[1]->lightIntensity += pointIntensitySpeed * deltaTime;
-    }
-
-    if (heldKeyInputs[GLFW_KEY_DOWN])
-    {
-        lightsList[1]->lightIntensity -= pointIntensitySpeed * deltaTime;
-
-        if (lightsList[1]->lightIntensity < 0)
-        {
-            lightsList[1]->lightIntensity = 0;
-        }
     }
 }
 
@@ -430,43 +427,35 @@ bool InitializeOpenGL(GLFWwindow** window)
     gladLoadGL();
     glViewport(0, 0, width, height);
 
-    glfwSetKeyCallback(*window, KeyCallback);
-    glfwSetCursorPosCallback(*window, CursorPositionCallback);
-    glfwSetMouseButtonCallback(*window, MouseButtonCallback);
+    glfwSetWindowUserPointer(*window, &player); 
+
+    glfwSetKeyCallback(*window, [](GLFWwindow* window, int key, int scancode, int action, int mod) {
+        player->KeyCallback(window, key, scancode, action, mod); 
+    });
+    glfwSetCursorPosCallback(*window, [](GLFWwindow* window, double xPos, double yPos) {
+        player->CursorPositionCallback(window, xPos, yPos);
+    });
+    glfwSetMouseButtonCallback(*window, [](GLFWwindow* window, int button, int action, int mod) {
+        player->MouseButtonCallback(window, button, action, mod);
+    });
     glfwSetInputMode(*window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     return true;
 }
 
-String GetShaderData(String path)
+void LoadShaders(const List<Pair<String, String>>& shaderPathsList)
 {
-    std::fstream src(path);
-    std::stringstream buffer;
-    buffer << src.rdbuf();
+    for (Pair<String, String> pair : shaderPathsList)
+    {
+        String vert = pair.first;
+        String frag = pair.second;
 
-    return buffer.str();
+        Shader* shader = new Shader();
+        shader->InitializeProgram(vert, frag);
+        shadersList.push_back(shader);
+    }
 }
 
-GLuint InitializeShaderProgram(const char* vertexData, const char* fragmentData, GLuint& vertShader, GLuint& fragShader)
-{
-    vertShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertShader, 1, &vertexData, NULL);
-    glCompileShader(vertShader);
-
-    fragShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragShader, 1, &fragmentData, NULL);
-    glCompileShader(fragShader);
-
-    GLuint shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertShader);
-    glAttachShader(shaderProgram, fragShader);
-    glLinkProgram(shaderProgram);
-
-    return shaderProgram;
-}
-#pragma endregion
-
-#pragma region Setup Scene
 void LoadObjects(const List<String>& objPathsList)
 {
     for (String path : objPathsList)
@@ -504,6 +493,8 @@ void CreateModels(const List<Pair<int, int>>& objTextureMap, const List<glm::vec
         newModel->transform.scale = modelsInfoList[i * 4 + 2];
         newModel->color = modelsInfoList[i * 4 + 3];
     }
+
+    player->SetPlayerModel(modelsList[1]);
 }
 
 void CreateLights(const List<Pair<glm::vec3, unsigned int>>& lightsInfoList)
@@ -536,22 +527,31 @@ void CreateLights(const List<Pair<glm::vec3, unsigned int>>& lightsInfoList)
 
         lightsList.push_back(light);
     }
+
+    player->SetLight(lightsList[1]);
 }
 
 void CreateCameras(const List<glm::vec3>& camerasInfoList)
 {
-    PerspectiveCamera* perspectiveCam = new PerspectiveCamera(fov, width, height, 0.1f, 100.f);
-    perspectiveCam->ComputeProjectionMatrix();
-    perspectiveCam->transform.position = camerasInfoList[0];
-    perspectiveCam->transform.Rotate(camerasInfoList[1]);
-    perspectiveCam->SetCamTarget(camerasInfoList[2]);
-    camerasList.push_back(perspectiveCam);
+    PerspectiveCamera* thirdPerson = new PerspectiveCamera(fov, width, height, 0.1f, 50.f);
+    thirdPerson->ComputeProjectionMatrix(); 
+    thirdPerson->transform.position = camerasInfoList[0]; 
+    thirdPerson->transform.Rotate(camerasInfoList[1]); 
+    thirdPerson->SetCamTarget(camerasInfoList[2]); 
+    camerasList.push_back(thirdPerson); 
+
+    PerspectiveCamera* firstPerson = new PerspectiveCamera(fov, width, height, 1.1f, 100.f);
+    firstPerson->ComputeProjectionMatrix(); 
+    firstPerson->transform.position = camerasInfoList[3]; 
+    firstPerson->transform.Rotate(camerasInfoList[4]); 
+    firstPerson->SetCamTarget(camerasInfoList[5]); 
+    camerasList.push_back(firstPerson);
 
     OrthoCamera* orthoCam = new OrthoCamera(-5.0f, 5.0f, -5.0f, 5.0f, -10.0f, 10.0f);
     orthoCam->ComputeProjectionMatrix();
-    orthoCam->transform.position = camerasInfoList[3];
-    orthoCam->transform.Rotate(camerasInfoList[4]);
-    orthoCam->SetCamTarget(camerasInfoList[5]);
+    orthoCam->transform.position = camerasInfoList[6];
+    orthoCam->transform.Rotate(camerasInfoList[7]);
+    orthoCam->SetCamTarget(camerasInfoList[8]);
     camerasList.push_back(orthoCam);
 
     mainCamera = camerasList[0];
@@ -578,6 +578,29 @@ glm::mat4 CreateViewMatrix()
     camOrientation[2][2] = -F.z;
 
     return camOrientation * camPosMatrix;
+}
+
+void UpdateCameras()
+{
+    // Update main camera
+    Cameras currentCamera = player->GetCurrentCamera();
+    switch (currentCamera)
+    {
+    case Cameras::Third_Person:
+        mainCamera = camerasList[0];
+        break;
+    case Cameras::First_Person:
+        mainCamera = camerasList[1];
+        break;
+    case Cameras::Birds_Eye:
+        mainCamera = camerasList[2];
+        break;
+    default:
+        mainCamera = camerasList[0];
+        break;
+    }
+
+    // Update camera transforms
 }
 
 void ComputeVerticesWithShaders(GLuint& shaderProgram, glm::mat4& transformationMatrix, glm::mat4& viewMatrix)
@@ -667,5 +690,12 @@ void PassLightingData(GLuint& shaderProgram)
 #pragma endregion
 
 
-// Amumu: https://www.models-resource.com/pc_computer/leagueoflegends/model/23225/
+// carrier-tank: https://www.models-resource.com/pc_computer/teamfortress2/model/51616/    0.001
+// tanks: https://www.models-resource.com/gamecube/gotchaforce/model/51842/                1.0
+// Amumu: https://www.models-resource.com/pc_computer/leagueoflegends/model/23225/         0.01
+// Veigar: https://www.models-resource.com/pc_computer/leagueoflegends/model/23244/        0.01
+// penguin: https://www.models-resource.com/pc_computer/bloonstd6/model/61916/             0.05
+// snowman: https://www.models-resource.com/pc_computer/bloonstd6/model/61919/             0.1
+// panda: https://www.models-resource.com/mobile/burritobashwebarebears/model/28212/       1.0
+// skybox: https://assetstore.unity.com/packages/2d/textures-materials/sky/skybox-series-free-103633
 // Sphere: exported from the primitive sphere of Unity

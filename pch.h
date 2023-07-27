@@ -50,3 +50,16 @@ template<typename MainClass, typename ToConvert>
 inline ToConvert* ConvertTo(MainClass* ptr) {
 	return dynamic_cast<ToConvert*>(ptr);
 }
+
+// global enums
+enum Cameras {
+	Third_Person,
+	First_Person,
+	Birds_Eye,
+};
+
+enum LightIntensity {
+	Low,
+	Medium,
+	High,
+};
