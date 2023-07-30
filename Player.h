@@ -18,26 +18,27 @@ public:
 	void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod);
 	void CursorPositionCallback(GLFWwindow* window, double xPos, double yPos);
 	void MouseButtonCallback(GLFWwindow* window, int button, int action, int mod);
-	void CheckInputs(float deltaTime);
+	void CheckInputs(float deltaTime, Camera* mainCamera);
 
 private:
-	void OnMovementInputs(float deltaTime);
-	void OnBinocularInputs(float deltaTime);
-	void OnOrthoCameraInputs(float deltaTime);
+	void OnMovementInputs(float deltaTime, Camera* mainCamera);
+	void OnBinocularInputs(float deltaTime, Camera* mainCamera);
+	void OnOrthoCameraInputs(float deltaTime, Camera* mainCamera);
 
 
 public:
-	Transform transform; 
+	Transform transform;
+	bool isInThirdPerson = true;
 
 private:
 	// Controls/Inputs
 	Dictionary<int, bool> heldKeyInputs;
 	Dictionary<int, bool> heldButtonInputs;
-	const float movementSpeed = 1.f;
+	const float movementSpeed = 5.f;
 	const float rotationSpeed = 45.f;
+	const float zoomSpeed = 10.f;
 	LightIntensity intensity = LightIntensity::Low;
 	Cameras currentCamera = Cameras::Third_Person;
-	bool isInThirdPerson = true;
 
 	// Mouse
 	const float mouseSensitivity = 600.f;

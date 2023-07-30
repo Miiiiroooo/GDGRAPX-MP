@@ -130,8 +130,8 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="Shaders\shader.frag" />
-    <CopyFileToFolders Include="Shaders\shader.vert" />
+    <CopyFileToFolders Include="Shaders\default.frag" />
+    <CopyFileToFolders Include="Shaders\default.vert" />
     <CopyFileToFolders Include="Shaders\skybox.frag" />
     <CopyFileToFolders Include="Shaders\skybox.vert" />
   </ItemGroup>

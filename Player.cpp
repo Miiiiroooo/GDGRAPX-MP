@@ -39,8 +39,19 @@ void Player::KeyCallback(GLFWwindow* window, int key, int scancode, int action, 
 
     if (key == GLFW_KEY_1 && action == GLFW_PRESS)
     {
-        currentCamera = isInThirdPerson ? Cameras::First_Person : Cameras::Third_Person;
-        isInThirdPerson = currentCamera == Cameras::Third_Person; 
+        if (currentCamera == Cameras::Birds_Eye && isInThirdPerson)
+        {
+            currentCamera = Cameras::Third_Person;
+        }
+        else if (currentCamera == Cameras::Birds_Eye && !isInThirdPerson)
+        {
+            currentCamera = Cameras::First_Person;
+        }
+        else
+        {
+            currentCamera = isInThirdPerson ? Cameras::First_Person : Cameras::Third_Person;
+            isInThirdPerson = currentCamera == Cameras::Third_Person;
+        }
     }
 
     if (key == GLFW_KEY_2 && action == GLFW_PRESS)
@@ -87,19 +98,19 @@ void Player::MouseButtonCallback(GLFWwindow* window, int button, int action, int
     }
 }
 
-void Player::CheckInputs(float deltaTime)
+void Player::CheckInputs(float deltaTime, Camera* mainCamera)
 {
-    OnMovementInputs(deltaTime);
-    OnBinocularInputs(deltaTime);
-    OnOrthoCameraInputs(deltaTime);
+    OnMovementInputs(deltaTime, mainCamera);
+    OnBinocularInputs(deltaTime, mainCamera);
+    OnOrthoCameraInputs(deltaTime, mainCamera);
 }
 
-void Player::OnMovementInputs(float deltaTime)
+void Player::OnMovementInputs(float deltaTime, Camera* mainCamera)
 {
     if (currentCamera != Cameras::Third_Person)
         return;
 
-    glm::vec3 deltaPos = glm::vec3(0.f);
+    glm::vec3 deltaPos(0.f);
 
     if (heldKeyInputs[GLFW_KEY_W])
     {
@@ -126,70 +137,114 @@ void Player::OnMovementInputs(float deltaTime)
     transform.position += deltaPos;
     model->transform.position += deltaPos;
     light->transform.position += deltaPos;
+    mainCamera->transform.position += deltaPos;
 
     transform.Rotate(deltaRot);
     model->transform.Rotate(deltaRot);
-    light->transform.Rotate(deltaRot); 
+    light->transform.RotateAroundPoint(deltaRot, transform.position); 
+    mainCamera->transform.RotateAroundPoint(deltaRot, transform.position);
 }
 
-void Player::OnBinocularInputs(float deltaTime)
+void Player::OnBinocularInputs(float deltaTime, Camera* mainCamera)
 {
     if (currentCamera != Cameras::First_Person)
         return;
 
+    PerspectiveCamera* firstPersonCam = ConvertTo<Camera, PerspectiveCamera>(mainCamera);
+
+    glm::vec3 rotation = firstPersonCam->transform.GetEulerRotation();
+    float deltaAngle = 0.f;
+    float fov = firstPersonCam->fov;
+
+    // converting from quat to euler angles usually result to different angles from what is expected
+    // pitch and roll rotation are clamped between [-180, 180] and yaw rotation is clamped between [-90, 90]
+    // since camera rotation never uses roll, we can use it as basis to get our expected euler angles
+    bool checkRollNoValue = rotation.z <= 1.f && rotation.z >= -1.f; 
+
+
     if (heldKeyInputs[GLFW_KEY_W])
     {
+        deltaAngle -= rotationSpeed * deltaTime;
 
+        if (checkRollNoValue && rotation.x + deltaAngle > -50.f ||
+            rotation.x + deltaAngle > 130.f ||
+            rotation.x + deltaAngle < -170.f)
+        {
+            firstPersonCam->transform.RotateAroundAxis(deltaAngle, firstPersonCam->transform.localRight);
+        }
     }
 
     if (heldKeyInputs[GLFW_KEY_S])
     {
+        deltaAngle += rotationSpeed * deltaTime;
 
+        if (checkRollNoValue && rotation.x + deltaAngle < 10.f ||
+            rotation.x + deltaAngle > 130.f ||
+            rotation.x + deltaAngle < -170.f)
+        {
+            firstPersonCam->transform.RotateAroundAxis(deltaAngle, firstPersonCam->transform.localRight);
+        }
     }
 
     if (heldKeyInputs[GLFW_KEY_A])
     {
-
+        deltaAngle -= rotationSpeed * deltaTime;
+        firstPersonCam->transform.RotateAroundAxisAndPoint(deltaAngle, worldUp, transform.position);
     }
 
     if (heldKeyInputs[GLFW_KEY_D])
     {
-
+        deltaAngle += rotationSpeed * deltaTime;
+        firstPersonCam->transform.RotateAroundAxisAndPoint(deltaAngle, worldUp, transform.position);
     }
 
     if (heldKeyInputs[GLFW_KEY_Q])
     {
+        fov += zoomSpeed * deltaTime;
+        if (fov > 115)
+            fov = 115;
 
+        firstPersonCam->fov = fov; 
+        firstPersonCam->ComputeProjectionMatrix(); 
     }
 
     if (heldKeyInputs[GLFW_KEY_E])
     {
+        fov -= zoomSpeed * deltaTime;
+        if (fov < 5)
+            fov = 5;
 
+        firstPersonCam->fov = fov; 
+        firstPersonCam->ComputeProjectionMatrix(); 
     }
 }
 
-void Player::OnOrthoCameraInputs(float deltaTime)
+void Player::OnOrthoCameraInputs(float deltaTime, Camera* mainCamera)
 {
     if (currentCamera != Cameras::Birds_Eye)
         return;
 
+    glm::vec3 deltaPos(0.f);
+
     if (heldKeyInputs[GLFW_KEY_W])
     {
-
+        deltaPos += transform.localForward * movementSpeed * 2.5f * deltaTime;
     }
 
     if (heldKeyInputs[GLFW_KEY_S])
     {
-
+        deltaPos += -transform.localForward * movementSpeed * 2.5f * deltaTime;
     }
 
     if (heldKeyInputs[GLFW_KEY_A])
     {
-
+        deltaPos += -transform.localRight * movementSpeed * 2.5f * deltaTime;
     }
 
     if (heldKeyInputs[GLFW_KEY_D])
     {
-
+        deltaPos += transform.localRight * movementSpeed * 2.5f * deltaTime;
     }
+    
+    mainCamera->transform.position += deltaPos;
 }

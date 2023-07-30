@@ -23,9 +23,7 @@ void Transform::Rotate(const glm::vec3& rotation)
 	orientation = glm::quat(glm::radians(rotation)) * orientation;
 
 	eulerAngles += rotation;
-	eulerAngles.x = GetClosestReferenceAngle(eulerAngles.x);
-	eulerAngles.y = GetClosestReferenceAngle(eulerAngles.y);
-	eulerAngles.z = GetClosestReferenceAngle(eulerAngles.z);
+	eulerAngles = RoundToClosestReferenceAngle(eulerAngles);
 
 	UpdateLocalVectors(); 
 }
@@ -36,11 +34,42 @@ void Transform::RotateAroundPoint(const glm::vec3& rotation, const glm::vec3& an
 	Rotate(rotation); 
 
 	// Update position
-	glm::mat4 transformationMatrix = glm::translate(identity_matrix4, anchorPoint - position);    
-	transformationMatrix = glm::toMat4(glm::quat(glm::radians(rotation))) * transformationMatrix; 
-	transformationMatrix = glm::translate(transformationMatrix, position - anchorPoint);    
+	glm::vec3 displacement = position - anchorPoint;
+	glm::mat4 transformationMatrix = glm::toMat4(glm::quat(glm::radians(rotation)));
+	displacement = transformationMatrix * glm::vec4(displacement, 1.f);
 
-	position = transformationMatrix * glm::vec4(position, 1.f);}
+	position = anchorPoint + displacement; 
+}
+
+void Transform::RotateAroundAxis(float angle, const glm::vec3& axis)
+{
+	orientation = glm::angleAxis(glm::radians(angle), axis) * orientation;
+
+	eulerAngles = glm::degrees(glm::eulerAngles(orientation));
+	eulerAngles = RoundToClosestReferenceAngle(eulerAngles);
+
+	UpdateLocalVectors();
+}
+
+void Transform::RotateAroundAxisAndPoint(float angle, const glm::vec3& axis, const glm::vec3& anchorPoint)
+{
+	// Update rotation
+	RotateAroundAxis(angle, axis);
+
+	// Update position
+	glm::vec3 displacement = position - anchorPoint; 
+	glm::mat4 transformationMatrix = glm::toMat4(glm::angleAxis(glm::radians(angle), axis));
+	displacement = transformationMatrix * glm::vec4(displacement, 1.f); 
+
+	position = anchorPoint + displacement; 
+}
+
+void Transform::ResetRotation()
+{
+	eulerAngles = glm::vec3(0, 0, 0);
+	orientation = glm::quat(glm::vec3(0.f));
+	UpdateLocalVectors(); 
+}
 
 glm::vec3 Transform::GetEulerRotation()
 {
@@ -52,11 +81,14 @@ glm::quat Transform::GetRotation()
 	return orientation;
 }
 
-float Transform::GetClosestReferenceAngle(float angle)
+glm::vec3 Transform::RoundToClosestReferenceAngle(glm::vec3 rot)
 {
-	int referenceAngle = (int)(angle * 100) % 36000;
+	glm::vec3 newRot = rot;
+	newRot.x = ((int)(newRot.x * 10000) % 3600000) / 10000.f;
+	newRot.y = ((int)(newRot.y * 10000) % 3600000) / 10000.f;
+	newRot.z = ((int)(newRot.z * 10000) % 3600000) / 10000.f;
 
-	return (float)(referenceAngle / 100.f);
+	return newRot;
 }
 
 void Transform::UpdateLocalVectors()

@@ -9,11 +9,14 @@ public:
 
 	void Rotate(const glm::vec3& rotation);
 	void RotateAroundPoint(const glm::vec3& rotation, const glm::vec3& anchorPoint);
+	void RotateAroundAxis(float angle, const glm::vec3& axis);
+	void RotateAroundAxisAndPoint(float angle, const glm::vec3& axis, const glm::vec3& anchorPoint);
+	void ResetRotation();
 	glm::vec3 GetEulerRotation();
 	glm::quat GetRotation();
 
 private:
-	float GetClosestReferenceAngle(float angle);
+	glm::vec3 RoundToClosestReferenceAngle(glm::vec3 rot);
 	void UpdateLocalVectors();
 
 

@@ -50,12 +50,6 @@ const float height = 600;
 
 
 #pragma region Method Declarations
-void ModelRotationInputs();
-void PerspectiveCamRotationInputs();
-void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod);
-void CursorPositionCallback(GLFWwindow* window, double xPos, double yPos);
-void MouseButtonCallback(GLFWwindow* window, int button, int action, int mod);
-
 bool InitializeOpenGL(GLFWwindow** window);
 void LoadShaders(const List<Pair<String, String>>& shaderPathsList); 
 void LoadObjects(const List<String>& objPathsList);
@@ -65,7 +59,9 @@ void CreateLights(const List<Pair<glm::vec3, unsigned int>>& lightsInfoList);
 void CreateCameras(const List<glm::vec3>& camerasInfoList);
 
 glm::mat4 CreateViewMatrix();
-void UpdateCameras();
+void UpdateGround();
+void UpdateMainCamera();
+void ResetCameras();
 void ComputeVerticesWithShaders(GLuint& shaderProgram, glm::mat4& transformationMatrix, glm::mat4& viewMatrix);
 void ComputeFragmentsWithShaders(GLuint& shaderProgram, Texture* texture, glm::vec3& color);
 void PassLightingData(GLuint& shaderProgram);
@@ -85,7 +81,7 @@ int main(void)
 
     // Load shaders 
     List<Pair<String, String>> shaderPathsList = {
-        {"Shaders/shader.vert", "Shaders/shader.frag"},
+        {"Shaders/default.vert", "Shaders/default.frag"},
         {"Shaders/skybox.vert", "Shaders/skybox.frag"}
     };
     LoadShaders(shaderPathsList);
@@ -145,9 +141,9 @@ int main(void)
     };
     List<glm::vec3> modelsInfoList = {
         // plane
-        glm::vec3(0.f, 0.3f, 0.f),        // position
+        glm::vec3(0.f, 0.f, 0.f),         // position
         glm::vec3(0.f, 180.f, 0.f),       // rotation
-        glm::vec3(70.f, 1.f, 70.f),     // scale
+        glm::vec3(15.f, 1.f, 15.f),       // scale
         glm::vec3(1.f, 1.f, 1.f),         // color
         // player tank
         glm::vec3(0.f, 0.f, 0.f),
@@ -190,8 +186,8 @@ int main(void)
 
     // Create Lights
     List<Pair<glm::vec3, unsigned int>> lightsInfoList = {
-        {glm::vec3(4, -11, 3), 0},              // position, light type
-        {glm::vec3(2.1213f, 2.f, 2.1213f), 1},
+        {glm::vec3(0.f, 0.f, 0.f), 0},              // position, light type
+        {glm::vec3(0.f, 0.5f, 1.f), 1},
     };
     CreateLights(lightsInfoList);
 
@@ -199,15 +195,15 @@ int main(void)
     // Create Cameras
     List<glm::vec3> camerasInfoList = {
         // third-person
-        glm::vec3(0.f, 5.0f, -5.f),           // position
+        glm::vec3(0.f, 6.0f, -6.f),           // position
         glm::vec3(45.f, 0.f, 0.f),            // rotation
         modelsList[1]->transform.position,    // camera target 
         // first-person
-        modelsList[1]->transform.position,
+        glm::vec3(0.f, 1.f, 1.f),
         modelsList[1]->transform.GetEulerRotation(),
         modelsList[1]->transform.localForward,
         // ortho
-        glm::vec3(0.f, 6.f, 0.f),
+        glm::vec3(0.f, 8.f, 0.f),
         glm::vec3(89.f, 0.f, 0.f),
         modelsList[1]->transform.position,
     };
@@ -224,27 +220,27 @@ int main(void)
         oldTimeSinceStart = timeSinceStart;
 
         // Check inputs
-        ModelRotationInputs();
-        PerspectiveCamRotationInputs();
+        UpdateGround();
+        UpdateMainCamera();
+        player->CheckInputs(deltaTime, mainCamera);
 
-        player->CheckInputs(deltaTime);
-        UpdateCameras();
 
         // Iterate through modelsList
         for (Model3D* model : modelsList)
         {
             glm::mat4 transformationMatrix = model->GetTransformationMatrix();
-            glm::mat4 viewMatrix = CreateViewMatrix();
+            glm::mat4 viewMatrix = CreateViewMatrix(); 
 
             ComputeVerticesWithShaders(shadersList[0]->GetShaderProgram(), transformationMatrix, viewMatrix);
             ComputeFragmentsWithShaders(shadersList[0]->GetShaderProgram(), model->texture, model->color);
 
-            skybox->Render(viewMatrix, mainCamera->GetProjectionMatrix());
+            skybox->Render(viewMatrix, mainCamera->GetProjectionMatrix(), (mainCamera == camerasList[1])); 
 
             glUseProgram(shadersList[0]->GetShaderProgram());
             glBindVertexArray(model->objRef->GetVAO());
             glDrawArrays(GL_TRIANGLES, 0, model->objRef->GetFullVertexData().size() / 8);
         }
+
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -259,156 +255,6 @@ int main(void)
     return 0;
 }
 
-
-#pragma region Input Callbacks
-void ModelRotationInputs()
-{
-    if (isControllingLight)
-        return;
-
-    Model3D* model = modelsList[0];
-    float delta = deltaTime * modelRotationSpeed;
-
-    if (heldKeyInputs[GLFW_KEY_W])
-    {
-        model->transform.Rotate(glm::vec3(delta, 0.f, 0.f));
-    }
-
-    if (heldKeyInputs[GLFW_KEY_S])
-    {
-        model->transform.Rotate(glm::vec3(-delta, 0.f, 0.f));
-    }
-
-    if (heldKeyInputs[GLFW_KEY_A])
-    {
-        model->transform.Rotate(glm::vec3(0.f, delta, 0.f));
-    }
-
-    if (heldKeyInputs[GLFW_KEY_D])
-    {
-        model->transform.Rotate(glm::vec3(0.f, -delta, 0.f));
-    }
-
-    if (heldKeyInputs[GLFW_KEY_Q])
-    {
-        model->transform.Rotate(glm::vec3(0.f, 0.f, delta));
-    }
-
-    if (heldKeyInputs[GLFW_KEY_E])
-    {
-        model->transform.Rotate(glm::vec3(0.f, 0.f, -delta));
-    }
-}
-
-void PerspectiveCamRotationInputs()
-{
-    // Check for clicks
-    if (!heldButtonInputs[GLFW_MOUSE_BUTTON_1])
-        return;
-
-    // Get main camera but return if not in perspective mode
-    Camera* perspective = mainCamera;
-    if (!InstanceOf<Camera, PerspectiveCamera>(perspective))
-        return;
-
-    // Apply rotation
-    mouseDir *= mouseSensitivity * deltaTime;
-    glm::vec2 camPos = glm::vec2(perspective->transform.position.x, perspective->transform.position.z);
-    camPos = glm::normalize(camPos);
-
-    glm::vec3 rotate(
-        mouseDir.y * -camPos.y,    // rotate.x : pitch rotation, relies on vertical movements of mouse to look up or down
-        //          : also dependent on the position along the z-axis in case forward vector is pointing along the z-axis
-        mouseDir.x,                // rotate.y : yaw rotation, only relies on horizontal movements of mouse to move left or right
-        mouseDir.y * camPos.x      // rotate.z : roll rotation, relies on vertical movements of mouse to look up or down
-    );                             //          : also dependent on the position along the x-axis in case forward vector is pointing along the x-axis
-
-    glm::vec3 currRotation = perspective->transform.GetEulerRotation();
-
-    if (currRotation.x + rotate.x > 60.f)
-    {
-        rotate.x = 60.f - currRotation.x;
-    }
-    else if (currRotation.x + rotate.x < -60.f)
-    {
-        rotate.x = -60.f - currRotation.x;
-    }
-
-    if (currRotation.z + rotate.z > 60.f)
-    {
-        rotate.z = 60.f - currRotation.z;
-    }
-    else if (currRotation.z + rotate.z < -60.f)
-    {
-        rotate.z = -60.f - currRotation.z;
-    }
-
-    perspective->transform.RotateAroundPoint(rotate, perspective->GetCamTarget());
-}
-
-void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
-{
-    // Press only
-    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-    {
-        isControllingLight = !isControllingLight;
-
-        // Get reference to point light and change its color
-        PointLight* light = ConvertTo<Light, PointLight>(lightsList[1]);
-        glm::vec3 color = isControllingLight ? glm::vec3(1.0f, 0.3f, 0.3f) : glm::vec3(1.0f, 1.0f, 1.0f);
-        light->ChangeColor(color);
-    }
-
-    if (key == GLFW_KEY_1 && action == GLFW_PRESS)
-    {
-        mainCamera = camerasList[0];
-    }
-
-    if (key == GLFW_KEY_2 && action == GLFW_PRESS)
-    {
-        mainCamera = camerasList[1];
-    }
-
-    // Can be held down
-    if (action == GLFW_PRESS && (
-        key == GLFW_KEY_W || key == GLFW_KEY_S || key == GLFW_KEY_D || key == GLFW_KEY_A ||
-        key == GLFW_KEY_Q || key == GLFW_KEY_E ||
-        key == GLFW_KEY_UP || key == GLFW_KEY_DOWN || key == GLFW_KEY_LEFT || key == GLFW_KEY_RIGHT))
-    {
-        heldKeyInputs[key] = true;
-    }
-    else if (action == GLFW_RELEASE && (
-        key == GLFW_KEY_W || key == GLFW_KEY_S || key == GLFW_KEY_D || key == GLFW_KEY_A ||
-        key == GLFW_KEY_Q || key == GLFW_KEY_E ||
-        key == GLFW_KEY_UP || key == GLFW_KEY_DOWN || key == GLFW_KEY_LEFT || key == GLFW_KEY_RIGHT))
-    {
-        heldKeyInputs[key] = false;
-    }
-}
-
-void CursorPositionCallback(GLFWwindow* window, double xPos, double yPos)
-{
-    // Get the change in position of the cursor and calculate its direction
-    oldCursorPos = currentCursorPos;
-    currentCursorPos = glm::vec2(xPos, yPos);
-
-    mouseDir = currentCursorPos - oldCursorPos;
-    mouseDir = glm::normalize(mouseDir);
-}
-
-void MouseButtonCallback(GLFWwindow* window, int button, int action, int mod)
-{
-    if (action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_1)
-    {
-        heldButtonInputs[GLFW_MOUSE_BUTTON_1] = true;
-    }
-
-    if (action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_1)
-    {
-        heldButtonInputs[GLFW_MOUSE_BUTTON_1] = false;
-    }
-}
-#pragma endregion
 
 #pragma region Initialize Program
 bool InitializeOpenGL(GLFWwindow** window)
@@ -507,8 +353,11 @@ void CreateLights(const List<Pair<glm::vec3, unsigned int>>& lightsInfoList)
         {
             DirectionalLight* dirLight = new DirectionalLight();
             dirLight->transform.position = info.first;
+            dirLight->lightColor = glm::vec3(0.5f, 0.5f, 0.8f);
+            dirLight->ambientColor = glm::vec3(0.2f, 0.4f, 0.8f);
+            dirLight->lightIntensity = 0.05f;
 
-            glm::vec3 dir = glm::vec3(0.f, 0.f, 0.f) - info.first;
+            glm::vec3 dir = glm::vec3(0.25f, -1.f, -0.5f);
             dir = glm::normalize(dir);
             dirLight->lightDir = dir;
 
@@ -519,7 +368,7 @@ void CreateLights(const List<Pair<glm::vec3, unsigned int>>& lightsInfoList)
             PointLight* pointLight = new PointLight();
             pointLight->transform.position = info.first;
 
-            pointLight->radius = 15.f;
+            pointLight->radius = 20.f;
             pointLight->model = modelsList[1];
 
             light = pointLight;
@@ -533,21 +382,21 @@ void CreateLights(const List<Pair<glm::vec3, unsigned int>>& lightsInfoList)
 
 void CreateCameras(const List<glm::vec3>& camerasInfoList)
 {
-    PerspectiveCamera* thirdPerson = new PerspectiveCamera(fov, width, height, 0.1f, 50.f);
+    PerspectiveCamera* thirdPerson = new PerspectiveCamera(70.f, width, height, 0.1f, 50.f);
     thirdPerson->ComputeProjectionMatrix(); 
     thirdPerson->transform.position = camerasInfoList[0]; 
     thirdPerson->transform.Rotate(camerasInfoList[1]); 
     thirdPerson->SetCamTarget(camerasInfoList[2]); 
     camerasList.push_back(thirdPerson); 
 
-    PerspectiveCamera* firstPerson = new PerspectiveCamera(fov, width, height, 1.1f, 100.f);
+    PerspectiveCamera* firstPerson = new PerspectiveCamera(fov, width, height, 0.6f, 100.f);
     firstPerson->ComputeProjectionMatrix(); 
     firstPerson->transform.position = camerasInfoList[3]; 
     firstPerson->transform.Rotate(camerasInfoList[4]); 
     firstPerson->SetCamTarget(camerasInfoList[5]); 
     camerasList.push_back(firstPerson);
 
-    OrthoCamera* orthoCam = new OrthoCamera(-5.0f, 5.0f, -5.0f, 5.0f, -10.0f, 10.0f);
+    OrthoCamera* orthoCam = new OrthoCamera(-15.0f, 15.0f, -15.0f, 15.0f, -10.0f, 10.0f);
     orthoCam->ComputeProjectionMatrix();
     orthoCam->transform.position = camerasInfoList[6];
     orthoCam->transform.Rotate(camerasInfoList[7]);
@@ -580,27 +429,68 @@ glm::mat4 CreateViewMatrix()
     return camOrientation * camPosMatrix;
 }
 
-void UpdateCameras()
+void UpdateGround()
 {
-    // Update main camera
-    Cameras currentCamera = player->GetCurrentCamera();
-    switch (currentCamera)
-    {
-    case Cameras::Third_Person:
-        mainCamera = camerasList[0];
-        break;
-    case Cameras::First_Person:
-        mainCamera = camerasList[1];
-        break;
-    case Cameras::Birds_Eye:
-        mainCamera = camerasList[2];
-        break;
-    default:
-        mainCamera = camerasList[0];
-        break;
-    }
+    Model3D* ground = modelsList[0];
 
-    // Update camera transforms
+    if (player->GetCurrentCamera() == Cameras::Birds_Eye)
+    {
+        glm::vec3 pos = camerasList[2]->transform.position;
+        pos.y = 0;
+        ground->transform.position = pos;
+    }
+    else
+    {
+        ground->transform.position = player->transform.position;
+    }
+}
+
+void UpdateMainCamera()
+{
+    Cameras currentCamera = player->GetCurrentCamera();
+
+    if (currentCamera == Cameras::Third_Person && mainCamera != camerasList[0])
+    {
+        mainCamera = camerasList[0];
+        ResetCameras(); 
+    }
+    else if (currentCamera == Cameras::First_Person && mainCamera != camerasList[1])
+    {
+        mainCamera = camerasList[1];
+        ResetCameras(); 
+    }
+    else if (currentCamera == Cameras::Birds_Eye && mainCamera != camerasList[2])
+    {
+        mainCamera = camerasList[2];
+        ResetCameras();
+    }
+}
+
+void ResetCameras()
+{
+    PerspectiveCamera* firstPersonCam = ConvertTo<Camera, PerspectiveCamera>(camerasList[1]);
+    glm::vec3 displacement = player->transform.localForward;
+    displacement.y = 1.f;
+    firstPersonCam->transform.position = player->transform.position + displacement;
+
+    glm::vec3 rot = glm::vec3(0.f, player->transform.GetEulerRotation().y, 0.f);
+    firstPersonCam->transform.ResetRotation(); 
+    firstPersonCam->transform.RotateAroundPoint(rot, firstPersonCam->transform.position);
+
+    firstPersonCam->fov = fov;
+    firstPersonCam->ComputeProjectionMatrix(); 
+    
+
+    Camera* birdsEyeCam = camerasList[2];
+    displacement = birdsEyeCam->transform.position;
+    displacement.x = 0.f;
+    displacement.z = 0.f;
+    birdsEyeCam->transform.position = player->transform.position + displacement;
+
+    rot = glm::vec3(0.f, player->transform.GetEulerRotation().y, 0.f);
+    rot.x = birdsEyeCam->transform.GetEulerRotation().x; 
+    birdsEyeCam->transform.ResetRotation();
+    birdsEyeCam->transform.Rotate(rot); 
 }
 
 void ComputeVerticesWithShaders(GLuint& shaderProgram, glm::mat4& transformationMatrix, glm::mat4& viewMatrix)
@@ -617,8 +507,8 @@ void ComputeVerticesWithShaders(GLuint& shaderProgram, glm::mat4& transformation
 
 void ComputeFragmentsWithShaders(GLuint& shaderProgram, Texture* texture, glm::vec3& color)
 {
-    GLuint isOnlyColorAddress = glGetUniformLocation(shaderProgram, "isOnlyColor");
-    glUniform1i(isOnlyColorAddress, (int)(texture == NULL));
+    GLuint isUntlitAddress = glGetUniformLocation(shaderProgram, "isUntlit");
+    glUniform1i(isUntlitAddress, (int)(texture == NULL));
 
     unsigned int colorShader = glGetUniformLocation(shaderProgram, "newColor");
     glUniform3fv(colorShader, 1, glm::value_ptr(color));
@@ -629,6 +519,9 @@ void ComputeFragmentsWithShaders(GLuint& shaderProgram, Texture* texture, glm::v
         glBindTexture(GL_TEXTURE_2D, texture->GetTexture());
         glUniform1i(tex0Address, 0);
     }
+
+    GLuint isNightVisionAddress = glGetUniformLocation(shaderProgram, "isNightVision");
+    glUniform1i(isNightVisionAddress, (int)(mainCamera == camerasList[1]));
 
     GLuint camPosAddress = glGetUniformLocation(shaderProgram, "camPos");
     glUniform3fv(camPosAddress, 1, glm::value_ptr(mainCamera->transform.position));

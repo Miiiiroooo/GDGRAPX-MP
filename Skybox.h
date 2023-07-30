@@ -7,7 +7,7 @@ public:
 	~Skybox();
 
 	void IntializeSkybox(const List<String> skyboxFaces);
-	void Render(glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
+	void Render(glm::mat4 viewMatrix, glm::mat4 projectionMatrix, bool isNightVision);
 
 private:
 	void InitializeBufferObjects();

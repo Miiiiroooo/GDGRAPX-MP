@@ -49,7 +49,7 @@ void Skybox::IntializeSkybox(const List<String> skyboxFaces)
     SetupTextures();
 }
 
-void Skybox::Render(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
+void Skybox::Render(glm::mat4 viewMatrix, glm::mat4 projectionMatrix, bool isNightVision)
 {
     // Use skybox shader and remove translations from view matrix
     glDepthMask(GL_FALSE); 
@@ -63,6 +63,9 @@ void Skybox::Render(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 
     unsigned int skyProjectionLoc = glGetUniformLocation(*skyboxShaderProgram, "projection");
     glUniformMatrix4fv(skyProjectionLoc, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+
+    GLuint isNightVisionAddress = glGetUniformLocation(*skyboxShaderProgram, "isNightVision");
+    glUniform1i(isNightVisionAddress, (int)(isNightVision));
 
     // Render skybox
     glBindVertexArray(skyboxVAO);
