@@ -100,9 +100,32 @@ void Player::MouseButtonCallback(GLFWwindow* window, int button, int action, int
 
 void Player::CheckInputs(float deltaTime, Camera* mainCamera)
 {
+    OnMouseInputs(deltaTime, mainCamera);
     OnMovementInputs(deltaTime, mainCamera);
     OnBinocularInputs(deltaTime, mainCamera);
     OnOrthoCameraInputs(deltaTime, mainCamera);
+}
+
+void Player::OnMouseInputs(float deltaTime, Camera* mainCamera)
+{
+    if (currentCamera != Cameras::Third_Person)
+        return;
+
+    if (heldButtonInputs[GLFW_MOUSE_BUTTON_1])
+    {
+        float deltaRot = mouseDir.y * mouseSensitivity * deltaTime * 0.3f; 
+        glm::vec3 rot = mainCamera->transform.GetEulerRotation(); 
+
+        if (rot.x + deltaRot < 60.f && rot.x + deltaRot > -5.f || 
+            rot.x + deltaRot < -120.f || rot.x + deltaRot > 175.f)
+        {
+            mainCamera->transform.RotateAroundAxis(deltaRot, mainCamera->transform.localRight);
+        }
+        else
+        {
+            mainCamera->transform.RotateAroundAxis(-deltaRot, mainCamera->transform.localRight);
+        }
+    }
 }
 
 void Player::OnMovementInputs(float deltaTime, Camera* mainCamera)
@@ -172,6 +195,10 @@ void Player::OnBinocularInputs(float deltaTime, Camera* mainCamera)
         {
             firstPersonCam->transform.RotateAroundAxis(deltaAngle, firstPersonCam->transform.localRight);
         }
+        else
+        {
+            firstPersonCam->transform.RotateAroundAxis(-deltaAngle, firstPersonCam->transform.localRight);
+        }
     }
 
     if (heldKeyInputs[GLFW_KEY_S])
@@ -183,6 +210,10 @@ void Player::OnBinocularInputs(float deltaTime, Camera* mainCamera)
             rotation.x + deltaAngle < -170.f)
         {
             firstPersonCam->transform.RotateAroundAxis(deltaAngle, firstPersonCam->transform.localRight);
+        }
+        else
+        {
+            firstPersonCam->transform.RotateAroundAxis(-deltaAngle, firstPersonCam->transform.localRight);
         }
     }
 

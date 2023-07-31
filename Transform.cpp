@@ -84,9 +84,9 @@ glm::quat Transform::GetRotation()
 glm::vec3 Transform::RoundToClosestReferenceAngle(glm::vec3 rot)
 {
 	glm::vec3 newRot = rot;
-	newRot.x = ((int)(newRot.x * 10000) % 3600000) / 10000.f;
-	newRot.y = ((int)(newRot.y * 10000) % 3600000) / 10000.f;
-	newRot.z = ((int)(newRot.z * 10000) % 3600000) / 10000.f;
+	newRot.x = ((int)(newRot.x * 100000) % 36000000) / 100000.f;
+	newRot.y = ((int)(newRot.y * 100000) % 36000000) / 100000.f;
+	newRot.z = ((int)(newRot.z * 100000) % 36000000) / 100000.f;
 
 	return newRot;
 }

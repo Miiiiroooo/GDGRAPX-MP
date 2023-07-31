@@ -130,7 +130,7 @@ int main(void)
 
     // Create new models
     List<Pair<int, int>> objTextureMap = {
-        {0, 0},       // index to obj reference (amumu.obj), index to texture (amumu.png)
+        {0, 0},       // index to obj reference (plane.obj), index to texture (ground.png)
         {1, 1},
         {2, 2},
         {3, 3},
@@ -158,7 +158,7 @@ int main(void)
         // penguin
         glm::vec3(-25.f, 0.f, -25.f),
         glm::vec3(0.f, 0.f, 0.f),
-        glm::vec3(0.05f, 0.05f, 0.05f),
+        glm::vec3(0.02f, 0.02f, 0.02f),
         glm::vec3(1.f, 1.f, 1.f),
         // panda
         glm::vec3(25.f, 0.f, -25.f),
@@ -171,14 +171,14 @@ int main(void)
         glm::vec3(0.1f, 0.1f, 0.1f),
         glm::vec3(1.f, 1.f, 1.f),
         // veigar
-        glm::vec3(75.f, 0.f, 75.f),
+        glm::vec3(50.f, 0.f, 0.f),
         glm::vec3(0.f, 0.f, 0.f),
         glm::vec3(0.01f, 0.01f, 0.01f),
         glm::vec3(1.f, 1.f, 1.f),
         // amumu
-        glm::vec3(75.f, 0.f, 75.f),
+        glm::vec3(-50.f, 0.f, 0.f),
         glm::vec3(0.f, 0.f, 0.f),
-        glm::vec3(0.01f, 0.01f, 0.01f),
+        glm::vec3(0.05f, 0.05f, 0.05f),
         glm::vec3(1.f, 1.f, 1.f),
     };
     CreateModels(objTextureMap, modelsInfoList);
@@ -583,12 +583,11 @@ void PassLightingData(GLuint& shaderProgram)
 #pragma endregion
 
 
-// carrier-tank: https://www.models-resource.com/pc_computer/teamfortress2/model/51616/    0.001
-// tanks: https://www.models-resource.com/gamecube/gotchaforce/model/51842/                1.0
-// Amumu: https://www.models-resource.com/pc_computer/leagueoflegends/model/23225/         0.01
-// Veigar: https://www.models-resource.com/pc_computer/leagueoflegends/model/23244/        0.01
-// penguin: https://www.models-resource.com/pc_computer/bloonstd6/model/61916/             0.05
-// snowman: https://www.models-resource.com/pc_computer/bloonstd6/model/61919/             0.1
-// panda: https://www.models-resource.com/mobile/burritobashwebarebears/model/28212/       1.0
+// carrier-tank: https://www.models-resource.com/pc_computer/teamfortress2/model/51616/
+// tanks: https://www.models-resource.com/gamecube/gotchaforce/model/51842/    
+// Amumu: https://www.models-resource.com/pc_computer/leagueoflegends/model/23225/   
+// Veigar: https://www.models-resource.com/pc_computer/leagueoflegends/model/23244/ 
+// penguin: https://www.models-resource.com/pc_computer/bloonstd6/model/61916/  
+// snowman: https://www.models-resource.com/pc_computer/bloonstd6/model/61919/ 
+// panda: https://www.models-resource.com/mobile/burritobashwebarebears/model/28212/  
 // skybox: https://assetstore.unity.com/packages/2d/textures-materials/sky/skybox-series-free-103633
-// Sphere: exported from the primitive sphere of Unity

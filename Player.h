@@ -21,6 +21,7 @@ public:
 	void CheckInputs(float deltaTime, Camera* mainCamera);
 
 private:
+	void OnMouseInputs(float deltaTime, Camera* mainCamera);
 	void OnMovementInputs(float deltaTime, Camera* mainCamera);
 	void OnBinocularInputs(float deltaTime, Camera* mainCamera);
 	void OnOrthoCameraInputs(float deltaTime, Camera* mainCamera);
@@ -41,7 +42,7 @@ private:
 	Cameras currentCamera = Cameras::Third_Person;
 
 	// Mouse
-	const float mouseSensitivity = 600.f;
+	const float mouseSensitivity = 100.f;
 	glm::vec2 oldCursorPos = glm::vec2(0.f);
 	glm::vec2 currentCursorPos = glm::vec2(0.f);
 	glm::vec2 mouseDir = glm::vec2(0.f);
